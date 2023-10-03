@@ -28,7 +28,7 @@ func (s *APIServer) Run() {
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 
 	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleGetAccountByID))
-
+	router.HandleFunc("/transfer", makeHTTPHandleFunc(s.handleTransfer))
 	log.Println("JSON API server running on port: ", s.listenAddr)
 
 	http.ListenAndServe(s.listenAddr, router)
@@ -52,10 +52,10 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 		return nil
 	}
 
-	if accounts == nil {
-		// Возможно, нужно добавить логику для обработки случая, когда счета отсутствуют
-		return fmt.Errorf("no accounts found")
-	}
+	// if accounts == nil {
+	// 	// Возможно, нужно добавить логику для обработки случая, когда счета отсутствуют
+	// 	return fmt.Errorf("no accounts found")
+	// }
 
 	return WriteJSON(w, http.StatusOK, accounts)
 }
@@ -92,10 +92,6 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	if err := s.store.CreateAccount(account); err != nil {
-		return err
-	}
-
 	return WriteJSON(w, http.StatusOK, account)
 }
 
@@ -112,7 +108,13 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ss APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	transferReq := new(TransferRequest)
+	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
+		return err
+	}
+	defer r.Body.Close()
+
+	return WriteJSON(w, http.StatusOK, transferReq)
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
