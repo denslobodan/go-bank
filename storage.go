@@ -22,8 +22,6 @@ type PostgresStore struct {
 func NewPostgresStore() (*PostgresStore, error) {
 	connStr := "user=postgres dbname=postgres password=gobank sslmode=disable"
 
-	// connStr := "postgres://postgres:password=gobank@localhost/postgresBank?sslmode=disable"
-
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -123,7 +121,7 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 		&account.FirstName,
 		&account.LastName,
 		&account.Number,
-		account.Balance,
+		&account.Balance,
 		&account.CreatedAt)
 
 	return account, err
