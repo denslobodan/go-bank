@@ -94,6 +94,13 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
+	tokenString, err := createJWT(account)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("JWT token: ", tokenString)
+
 	return WriteJSON(w, http.StatusOK, account)
 }
 
@@ -106,6 +113,7 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	if err := s.store.DeleteAccount(id); err != nil {
 		return err
 	}
+
 	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
 }
 
@@ -120,10 +128,26 @@ func (ss APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
+	// w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
+
 	return json.NewEncoder(w).Encode(v)
 }
+
+func createJWT(account *Account) (string, error) {
+	// Create the Claims
+	claims := &jwt.MapClaims{
+		"expiresAt":     15000,
+		"accountNumber": account.Number,
+	}
+
+	secret := os.Getenv("JWT_SECRET")
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString([]byte(secret))
+}
+
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjo3MzA3MjYsImV4cGlyZXNBdCI6MTUwMDB9.8Ns4rtNA0ie_-Vfm29P7zoykVz0Ku1p3uhidjaDOVDA
 
 func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
