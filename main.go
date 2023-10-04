@@ -1,5 +1,7 @@
 package main
 
+// part 4: 36:00
+
 import (
 	"log"
 )
