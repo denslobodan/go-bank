@@ -3,10 +3,34 @@ package main
 // part 4: 36:00
 
 import (
+	"flag"
+	"fmt"
 	"log"
 )
 
+func seedAccount(store Storage, fanme, lname, pw string) *Account {
+	acc, err := NewAccount(fanme, lname, pw)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := store.CreateAccount(acc); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("new account => ", acc.Number)
+
+	return acc
+}
+
+func seedAccounts(s Storage) {
+	seedAccount(s, "Light", "White", "hunter88888")
+}
+
 func main() {
+	seed := flag.Bool("seed", false, "seed the db")
+	flag.Parse()
+
 	store, err := NewPostgresStore()
 	if err != nil {
 		log.Fatal(err)
@@ -16,7 +40,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if *seed {
+		fmt.Println("seeding the database")
+		seedAccounts(store)
+	}
+
 	server := NewAPIServer(":3030", store)
 	server.Run()
-
 }
