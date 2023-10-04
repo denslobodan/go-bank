@@ -37,6 +37,8 @@ func (s *APIServer) Run() {
 	http.ListenAndServe(s.listenAddr, router)
 }
 
+// 100351
+// 112244
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return fmt.Errorf("method not allowed %s", r.Method)
@@ -47,7 +49,26 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, req)
+	acc, err := s.store.GetAccountByNumber(int(req.Number))
+	if err != nil {
+		return err // handle this response
+	}
+
+	if acc.ValidPassword(req.Password) {
+		return fmt.Errorf("not authenticated")
+	}
+
+	token, err := createJWT(acc)
+	if err != nil {
+		return err
+	}
+
+	resp := LoginResponse{
+		Token:  token,
+		Number: acc.Number,
+	}
+
+	return WriteJSON(w, http.StatusOK, resp)
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -145,7 +166,6 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 }
 
 func createJWT(account *Account) (string, error) {
-	// Create the Claims
 	claims := &jwt.MapClaims{
 		"expiresAt":     15000,
 		"accountNumber": account.Number,
@@ -203,8 +223,6 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	}
 }
 
-// const jwtSecret = "hunter17"
-
 func validateJWT(tokenString string) (*jwt.Token, error) {
 	secret := os.Getenv("JWT_SECRET")
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -213,7 +231,6 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
 
-		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
 		return []byte(secret), nil
 	})
 }
