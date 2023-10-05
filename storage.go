@@ -21,8 +21,8 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=postgres dbname=postgres password=gobank sslmode=disable"
 
+	connStr := "user=postgres dbname=postgres password=gobank sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -76,8 +76,14 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 
 	return nil
 }
+func (s *PostgresStore) UpdateAccount(account *Account) error {
+	query := `UPDATE accounts SET first_name = $1, last_name = $2, balance = $3 WHERE id = $4`
 
-func (s *PostgresStore) UpdateAccount(*Account) error {
+	_, err := s.db.Exec(query, account.FirstName, account.LastName, account.Balance, account.ID)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
