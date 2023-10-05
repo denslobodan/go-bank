@@ -35,7 +35,7 @@ type Account struct {
 	Number            int64     `json:"number"`
 	EncryptedPassword string    `json:"-"`
 	Balance           int64     `json:"balance"`
-	CreatedAt         time.Time `json:"createdAt"`
+	CreatedAt         time.Time `json:"createdAt" testify:"omitempty"` //omitempty
 }
 
 func (a *Account) ValidPassword(pw string) bool {
