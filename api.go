@@ -37,8 +37,6 @@ func (s *APIServer) Run() {
 	http.ListenAndServe(s.listenAddr, router)
 }
 
-// 100351
-// 112244
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return fmt.Errorf("method not allowed %s", r.Method)
@@ -88,11 +86,6 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		return nil
 	}
-
-	// if accounts == nil {
-	// 	// Возможно, нужно добавить логику для обработки случая, когда счета отсутствуют
-	// 	return fmt.Errorf("no accounts found")
-	// }
 
 	return WriteJSON(w, http.StatusOK, accounts)
 }
@@ -148,7 +141,7 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
 }
 
-func (ss APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
 	transferReq := new(TransferRequest)
 	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
 		return err
