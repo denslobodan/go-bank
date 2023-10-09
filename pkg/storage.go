@@ -1,4 +1,4 @@
-package main
+package pkg
 
 import (
 	"database/sql"
@@ -10,6 +10,7 @@ import (
 type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(int) error
+	DeleteAllAccounts() error
 	UpdateAccount(*Account) error
 	GetAccounts() ([]*Account, error)
 	GetAccountByID(int) (*Account, error)
@@ -20,9 +21,7 @@ type PostgresStore struct {
 	db *sql.DB
 }
 
-func NewPostgresStore() (*PostgresStore, error) {
-
-	connStr := "user=postgres dbname=postgres password=gobank sslmode=disable"
+func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -144,4 +143,17 @@ func scanIntoAccount(rows *sql.Rows) (*Account, error) {
 		&account.CreatedAt)
 
 	return account, err
+}
+
+func (s *PostgresStore) DeleteAllAccounts() error {
+	// Подготовка SQL-запроса для удаления всех записей из таблицы accounts
+	query := `DELETE FROM account;`
+
+	// Выполнение SQL-запроса
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

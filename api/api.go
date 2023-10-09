@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -10,14 +10,16 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/mux"
+
+	"github.com/denslobodan/go-bank/pkg"
 )
 
 type APIServer struct {
 	listenAddr string
-	store      Storage
+	store      pkg.Storage
 }
 
-func NewAPIServer(listenAddr string, store Storage) *APIServer {
+func NewAPIServer(listenAddr string, store pkg.Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
 		store:      store,
@@ -42,7 +44,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("method not allowed %s", r.Method)
 	}
 
-	var req LoginRequest
+	var req pkg.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
 	}
@@ -61,7 +63,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	resp := LoginResponse{
+	resp := pkg.LoginResponse{
 		Token:  token,
 		Number: acc.Number,
 	}
@@ -75,6 +77,10 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	}
 	if r.Method == "POST" {
 		return s.handleCreateAccount(w, r)
+	}
+
+	if r.Method == "DELETE" {
+		return s.handleDeleteAllAccounts(w, r)
 	}
 
 	return fmt.Errorf("method not allowed %s", r.Method)
@@ -112,12 +118,12 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	req := new(CreateAccountRequest)
+	req := new(pkg.CreateAccountRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
 	}
 
-	account, err := NewAccount(req.FirstName, req.LastName, req.Password)
+	account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
 	if err != nil {
 		return err
 	}
@@ -141,8 +147,16 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
 }
 
+func (s *APIServer) handleDeleteAllAccounts(w http.ResponseWriter, r *http.Request) error {
+	if err := s.store.DeleteAllAccounts(); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, "All accounts deleted")
+}
+
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
-	transferReq := new(TransferRequest)
+	transferReq := new(pkg.TransferRequest)
 	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
 		return err
 	}
@@ -158,7 +172,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
-func createJWT(account *Account) (string, error) {
+func createJWT(account *pkg.Account) (string, error) {
 	claims := &jwt.MapClaims{
 		"expiresAt":     15000,
 		"accountNumber": account.Number,
@@ -175,7 +189,7 @@ func permissionDenied(w http.ResponseWriter) {
 
 }
 
-func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
+func withJWTAuth(handlerFunc http.HandlerFunc, s pkg.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("calling JWT auth middleware")
 
