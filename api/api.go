@@ -11,15 +11,16 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/gorilla/mux"
 
-	"github.com/denslobodan/go-bank/pkg"
+	store "github.com/denslobodan/go-bank/pkg/storage"
+	pkg "github.com/denslobodan/go-bank/pkg/types"
 )
 
 type APIServer struct {
 	listenAddr string
-	store      pkg.Storage
+	store      store.Storage
 }
 
-func NewAPIServer(listenAddr string, store pkg.Storage) *APIServer {
+func NewAPIServer(listenAddr string, store store.Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
 		store:      store,
@@ -49,7 +50,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	acc, err := s.store.GetAccountByNumber(int(req.Number))
+	acc, err := s.store.GetAccountByNumber(int64(req.Number))
 	if err != nil {
 		return err // handle this response
 	}
@@ -189,7 +190,7 @@ func permissionDenied(w http.ResponseWriter) {
 
 }
 
-func withJWTAuth(handlerFunc http.HandlerFunc, s pkg.Storage) http.HandlerFunc {
+func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("calling JWT auth middleware")
 
