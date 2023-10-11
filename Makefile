@@ -7,8 +7,16 @@ run: build
 test:
 	@go test -v ./..
 
+shortt:
+	go test -short ./..
+
+.PHONY: gen
+gen: 
+	mockgen -source=pkg/storage/storage.go \
+	-destination=pkg/mocks/storage_mock.go
+
 .PHONY: cover
 cover:
-	go test -short -count=1 -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
 	rm coverage.out
