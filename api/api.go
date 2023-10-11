@@ -80,10 +80,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 		return s.handleCreateAccount(w, r)
 	}
 
-	if r.Method == "DELETE" {
-		return s.handleDeleteAllAccounts(w, r)
-	}
-
 	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
@@ -146,14 +142,6 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
-}
-
-func (s *APIServer) handleDeleteAllAccounts(w http.ResponseWriter, r *http.Request) error {
-	if err := s.store.DeleteAllAccounts(); err != nil {
-		return err
-	}
-
-	return WriteJSON(w, http.StatusOK, "All accounts deleted")
 }
 
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
