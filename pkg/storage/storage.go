@@ -12,7 +12,6 @@ import (
 type Storage interface {
 	CreateAccount(*types.Account) error
 	DeleteAccount(int) error
-	DeleteAllAccounts() error
 	UpdateAccount(*types.Account) error
 	GetAccounts() ([]*types.Account, error)
 	GetAccountByID(int) (*types.Account, error)
@@ -20,21 +19,19 @@ type Storage interface {
 }
 
 type PostgresStore struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
-func NewPostgresStore(connStr string) (*PostgresStore, error) {
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
+// переписать функцию, чтобы принимал БД
+func NewPostgresStore(db *sql.DB) (*PostgresStore, error) {
+	// var connStr = "user=postgres dbname=postgres password=gobank sslmode=disable"
 
 	if err := db.Ping(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("соединение отсутствует: %v", err)
 	}
 
 	return &PostgresStore{
-		db: db,
+		DB: db,
 	}, nil
 }
 
@@ -52,7 +49,7 @@ func (s *PostgresStore) createAccountTable() error {
 		balance serial,
 		created_at timestamp)`
 
-	_, err := s.db.Exec(query)
+	_, err := s.DB.Exec(query)
 	return err
 }
 
@@ -61,7 +58,7 @@ func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 		(first_name, last_name, number, encrypted_password, balance, created_at)
 		values ($1, $2, $3, $4, $5, $6)`
 
-	_, err := s.db.Query(
+	_, err := s.DB.Query(
 		query,
 		acc.FirstName,
 		acc.LastName,
@@ -80,7 +77,7 @@ func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 func (s *PostgresStore) UpdateAccount(account *types.Account) error {
 	query := `UPDATE account SET first_name = $1, last_name = $2, balance = $3 WHERE id = $4`
 
-	_, err := s.db.Exec(query, account.FirstName, account.LastName, account.Balance, account.ID)
+	_, err := s.DB.Exec(query, account.FirstName, account.LastName, account.Balance, account.ID)
 	if err != nil {
 		return err
 	}
@@ -89,12 +86,12 @@ func (s *PostgresStore) UpdateAccount(account *types.Account) error {
 }
 
 func (s *PostgresStore) DeleteAccount(id int) error {
-	_, err := s.db.Query("delete from account where id = $1", id)
+	_, err := s.DB.Query("delete from account where id = $1", id)
 	return err
 }
 
 func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error) {
-	rows, err := s.db.Query("select * from account where number = $1", number)
+	rows, err := s.DB.Query("select * from account where number = $1", number)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +102,7 @@ func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error)
 }
 
 func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) {
-	rows, err := s.db.Query("select * from account where id = $1", id)
+	rows, err := s.DB.Query("select * from account where id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +113,7 @@ func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) {
 }
 
 func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
-	rows, err := s.db.Query("select * from account")
+	rows, err := s.DB.Query("select * from account")
 	if err != nil {
 		return nil, err
 	}
@@ -145,17 +142,4 @@ func scanIntoAccount(rows *sql.Rows) (*types.Account, error) {
 		&account.CreatedAt)
 
 	return account, err
-}
-
-func (s *PostgresStore) DeleteAllAccounts() error {
-	// Подготовка SQL-запроса для удаления всех записей из таблицы accounts
-	query := `DELETE FROM account;`
-
-	// Выполнение SQL-запроса
-	_, err := s.db.Exec(query)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
