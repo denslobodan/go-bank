@@ -1,0 +1,569 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>api: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/denslobodan/go-bank/api/api.go (9.1%)</option>
+				
+				<option value="file1">github.com/denslobodan/go-bank/pkg/storage/storage.go (84.1%)</option>
+				
+				<option value="file2">github.com/denslobodan/go-bank/pkg/types/types.go (60.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package api
+
+import (
+        "encoding/json"
+        "fmt"
+        "log"
+        "net/http"
+        "os"
+        "strconv"
+
+        "github.com/golang-jwt/jwt"
+        "github.com/gorilla/mux"
+
+        store "github.com/denslobodan/go-bank/pkg/storage"
+        pkg "github.com/denslobodan/go-bank/pkg/types"
+)
+
+type APIServer struct {
+        listenAddr string
+        store      store.Storage
+}
+
+func NewAPIServer(listenAddr string, store store.Storage) *APIServer <span class="cov8" title="1">{
+        return &amp;APIServer{
+                listenAddr: listenAddr,
+                store:      store,
+        }
+}</span>
+
+func (s *APIServer) Run() <span class="cov0" title="0">{
+        router := mux.NewRouter()
+
+        router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
+        router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
+        router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleGetAccountByID), s.store))
+        router.HandleFunc("/transfer", makeHTTPHandleFunc(s.handleTransfer))
+
+        log.Println("JSON API server running on port: ", s.listenAddr)
+
+        http.ListenAndServe(s.listenAddr, router)
+}</span>
+
+func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        if r.Method != "POST" </span><span class="cov0" title="0">{
+                return fmt.Errorf("method not allowed %s", r.Method)
+        }</span>
+
+        <span class="cov0" title="0">var req pkg.LoginRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">acc, err := s.store.GetAccountByNumber(int64(req.Number))
+        if err != nil </span><span class="cov0" title="0">{
+                return err // handle this response
+        }</span>
+
+        <span class="cov0" title="0">if acc.ValidPassword(req.Password) </span><span class="cov0" title="0">{
+                return fmt.Errorf("not authenticated")
+        }</span>
+
+        <span class="cov0" title="0">token, err := createJWT(acc)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">resp := pkg.LoginResponse{
+                Token:  token,
+                Number: acc.Number,
+        }
+
+        return WriteJSON(w, http.StatusOK, resp)</span>
+}
+
+func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        if r.Method == "GET" </span><span class="cov0" title="0">{
+                return s.handleGetAccount(w, r)
+        }</span>
+        <span class="cov0" title="0">if r.Method == "POST" </span><span class="cov0" title="0">{
+                return s.handleCreateAccount(w, r)
+        }</span>
+
+        <span class="cov0" title="0">return fmt.Errorf("method not allowed %s", r.Method)</span>
+}
+
+// GET/account
+func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        accounts, err := s.store.GetAccounts()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">return WriteJSON(w, http.StatusOK, accounts)</span>
+}
+
+func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        if r.Method == "GET" </span><span class="cov0" title="0">{
+                id, err := getID(r)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov0" title="0">account, err := s.store.GetAccountByID(id)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                <span class="cov0" title="0">return WriteJSON(w, http.StatusOK, account)</span>
+        }
+
+        <span class="cov0" title="0">if r.Method == "DELETE" </span><span class="cov0" title="0">{
+                return s.handleDeleteAccount(w, r)
+        }</span>
+
+        <span class="cov0" title="0">return fmt.Errorf("method not allowed %s", r.Method)</span>
+}
+
+func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
+        req := new(pkg.CreateAccountRequest)
+        if err := json.NewDecoder(r.Body).Decode(req); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := s.store.CreateAccount(account); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, account)</span>
+}
+
+func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        id, err := getID(r)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">if err := s.store.DeleteAccount(id); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})</span>
+}
+
+func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        transferReq := new(pkg.TransferRequest)
+        if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">defer r.Body.Close()
+
+        return WriteJSON(w, http.StatusOK, transferReq)</span>
+}
+
+func WriteJSON(w http.ResponseWriter, status int, v any) error <span class="cov8" title="1">{
+        w.WriteHeader(status)
+        w.Header().Set("Content-Type", "application/json")
+
+        return json.NewEncoder(w).Encode(v)
+}</span>
+
+func createJWT(account *pkg.Account) (string, error) <span class="cov0" title="0">{
+        claims := &amp;jwt.MapClaims{
+                "expiresAt":     15000,
+                "accountNumber": account.Number,
+        }
+
+        secret := os.Getenv("JWT_SECRET")
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+        return token.SignedString([]byte(secret))
+}</span>
+
+func permissionDenied(w http.ResponseWriter) <span class="cov0" title="0">{
+        WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+
+}</span>
+
+func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                fmt.Println("calling JWT auth middleware")
+
+                tokenString := r.Header.Get("x-jwt-token")
+                token, err := validateJWT(tokenString)
+                if err != nil </span><span class="cov0" title="0">{
+                        permissionDenied(w)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if !token.Valid </span><span class="cov0" title="0">{
+                        permissionDenied(w)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">userID, err := getID(r)
+                if err != nil </span><span class="cov0" title="0">{
+                        permissionDenied(w)
+                        return
+                }</span>
+                <span class="cov0" title="0">account, err := s.GetAccountByID(userID)
+                if err != nil </span><span class="cov0" title="0">{
+                        permissionDenied(w)
+                        return
+                }</span>
+                <span class="cov0" title="0">claims := token.Claims.(jwt.MapClaims)
+                if account.Number != int64(claims["accountNumber"].(float64)) </span><span class="cov0" title="0">{
+                        permissionDenied(w)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                        WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"})
+                        return
+                }</span>
+
+                <span class="cov0" title="0">handlerFunc(w, r)</span>
+        }
+}
+
+func validateJWT(tokenString string) (*jwt.Token, error) <span class="cov0" title="0">{
+        secret := os.Getenv("JWT_SECRET")
+        return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) </span><span class="cov0" title="0">{
+                // Don't forget to validate the alg is what you expect:
+                if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+                }</span>
+
+                <span class="cov0" title="0">return []byte(secret), nil</span>
+        })
+}
+
+type apiFunc func(http.ResponseWriter, *http.Request) error
+
+type ApiError struct {
+        Error string `json:"error"`
+}
+
+func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                if err := f(w, r); err != nil </span><span class="cov0" title="0">{
+                        WriteJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
+                }</span>
+        }
+}
+
+func getID(r *http.Request) (int, error) <span class="cov0" title="0">{
+        idStr := mux.Vars(r)["id"]
+        id, err := strconv.Atoi(idStr)
+        if err != nil </span><span class="cov0" title="0">{
+                return id, fmt.Errorf("invaild id given %s", idStr)
+        }</span>
+
+        <span class="cov0" title="0">return id, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package store
+
+import (
+        "database/sql"
+        "fmt"
+
+        _ "github.com/lib/pq"
+
+        types "github.com/denslobodan/go-bank/pkg/types"
+)
+
+type Storage interface {
+        CreateAccount(*types.Account) error
+        DeleteAccount(int) error
+        UpdateAccount(*types.Account) error
+        GetAccounts() ([]*types.Account, error)
+        GetAccountByID(int) (*types.Account, error)
+        GetAccountByNumber(int64) (*types.Account, error)
+}
+
+type PostgresStore struct {
+        DB *sql.DB
+}
+
+// переписать функцию, чтобы принимал БД
+func NewPostgresStore(db *sql.DB) (*PostgresStore, error) <span class="cov8" title="1">{
+        // var connStr = "user=postgres dbname=postgres password=gobank sslmode=disable"
+
+        if err := db.Ping(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("соединение отсутствует: %v", err)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;PostgresStore{
+                DB: db,
+        }, nil</span>
+}
+
+func (s PostgresStore) Init() error <span class="cov8" title="1">{
+        return s.createAccountTable()
+}</span>
+
+func (s *PostgresStore) createAccountTable() error <span class="cov8" title="1">{
+        query := `create table if not exists account (
+                id serial primary key,
+                first_name varchar(100),
+                last_name varchar(100),
+                number serial,
+                encrypted_password varchar(100),
+                balance serial,
+                created_at timestamp)`
+
+        _, err := s.DB.Exec(query)
+        return err
+}</span>
+
+func (s *PostgresStore) CreateAccount(acc *types.Account) error <span class="cov8" title="1">{
+        query := `insert into account 
+                (first_name, last_name, number, encrypted_password, balance, created_at)
+                values ($1, $2, $3, $4, $5, $6)`
+
+        _, err := s.DB.Query(
+                query,
+                acc.FirstName,
+                acc.LastName,
+                acc.Number,
+                acc.EncryptedPassword,
+                acc.Balance,
+                acc.CreatedAt,
+        )
+
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+func (s *PostgresStore) UpdateAccount(account *types.Account) error <span class="cov8" title="1">{
+        query := `UPDATE account SET first_name = $1, last_name = $2, balance = $3 WHERE id = $4`
+
+        _, err := s.DB.Exec(query, account.FirstName, account.LastName, account.Balance, account.ID)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (s *PostgresStore) DeleteAccount(id int) error <span class="cov8" title="1">{
+        _, err := s.DB.Query("delete from account where id = $1", id)
+        return err
+}</span>
+
+func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error) <span class="cov8" title="1">{
+        rows, err := s.DB.Query("select * from account where number = $1", number)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                return scanIntoAccount(rows)
+        }</span>
+        <span class="cov8" title="1">return nil, fmt.Errorf("account with number [%d] not found", number)</span>
+}
+
+func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) <span class="cov8" title="1">{
+        rows, err := s.DB.Query("select * from account where id = $1", id)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                return scanIntoAccount(rows)
+        }</span>
+        <span class="cov8" title="1">return nil, fmt.Errorf("account %d not found", id)</span>
+}
+
+func (s *PostgresStore) GetAccounts() ([]*types.Account, error) <span class="cov8" title="1">{
+        rows, err := s.DB.Query("select * from account")
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">accounts := []*types.Account{}
+        for rows.Next() </span><span class="cov8" title="1">{
+                account, err := scanIntoAccount(rows)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">accounts = append(accounts, account)</span>
+        }
+        <span class="cov8" title="1">return accounts, nil</span>
+}
+
+func scanIntoAccount(rows *sql.Rows) (*types.Account, error) <span class="cov8" title="1">{
+        account := new(types.Account)
+        err := rows.Scan(
+                &amp;account.ID,
+                &amp;account.FirstName,
+                &amp;account.LastName,
+                &amp;account.Number,
+                &amp;account.EncryptedPassword,
+                &amp;account.Balance,
+                &amp;account.CreatedAt)
+
+        return account, err
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package types
+
+import (
+        "math/rand"
+        "time"
+
+        "golang.org/x/crypto/bcrypt"
+)
+
+type LoginResponse struct {
+        Number int64  `json:"number"`
+        Token  string `json:"token"`
+}
+
+type LoginRequest struct {
+        Number   int64  `json:"number"`
+        Password string `json:"password"`
+}
+
+type TransferRequest struct {
+        ToAccount int `json:"toAccount"`
+        Amount    int `json:"Amount"`
+}
+
+type CreateAccountRequest struct {
+        FirstName string `json:"firstName"`
+        LastName  string `json:"lastName"`
+        Password  string `json:"password"`
+}
+
+type Account struct {
+        ID                int       `json:"id"`
+        FirstName         string    `json:"firstName"`
+        LastName          string    `json:"lastName"`
+        Number            int64     `json:"number"`
+        EncryptedPassword string    `json:"-"`
+        Balance           int64     `json:"balance"`
+        CreatedAt         time.Time `json:"createdAt" testify:"omitempty"` //omitempty
+}
+
+func (a *Account) ValidPassword(pw string) bool <span class="cov0" title="0">{
+        return bcrypt.CompareHashAndPassword([]byte(a.EncryptedPassword), []byte(pw)) != nil
+}</span>
+
+func NewAccount(firstName, lastName, password string) (*Account, error) <span class="cov8" title="1">{
+        encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return &amp;Account{
+                FirstName:         firstName,
+                LastName:          lastName,
+                Number:            int64(rand.Intn(1000000)),
+                EncryptedPassword: string(encpw),
+                CreatedAt:         time.Now().UTC(),
+        }, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
