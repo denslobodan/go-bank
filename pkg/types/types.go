@@ -1,10 +1,18 @@
 package types
 
 import (
+	"errors"
 	"math/rand"
+	"regexp"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	errFName error = errors.New("invalid characters in firstName")
+	errLName error = errors.New("invalid characters in lastName")
 )
 
 type LoginResponse struct {
@@ -43,6 +51,14 @@ func (a *Account) ValidPassword(pw string) bool {
 }
 
 func NewAccount(firstName, lastName, password string) (*Account, error) {
+	if !vallidateName(firstName) {
+		return nil, errFName
+	}
+
+	if !vallidateName(lastName) {
+		return nil, errLName
+	}
+
 	encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -54,4 +70,17 @@ func NewAccount(firstName, lastName, password string) (*Account, error) {
 		EncryptedPassword: string(encpw),
 		CreatedAt:         time.Now().UTC(),
 	}, nil
+}
+
+func vallidateName(name string) bool {
+	name = strings.TrimSpace(name)
+
+	if name == "" {
+		return false
+	}
+
+	// Проверка корректности name с помощью регулярного выражения
+	nameRegex := regexp.MustCompile(`^[A-Za-z]+$`)
+
+	return nameRegex.MatchString(name)
 }
