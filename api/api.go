@@ -122,7 +122,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
 	account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
 	if err != nil {
-		return err
+		return WriteJSON(w, http.StatusBadRequest, nil)
 	}
 	if err := s.store.CreateAccount(account); err != nil {
 		return err
@@ -196,12 +196,14 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
 
 		userID, err := getID(r)
 		if err != nil {
-			permissionDenied(w)
+			WriteJSON(w, http.StatusBadRequest, nil)
+			// permissionDenied(w)
 			return
 		}
 		account, err := s.GetAccountByID(userID)
 		if err != nil {
-			permissionDenied(w)
+			// permissionDenied(w)
+			WriteJSON(w, http.StatusNotFound, nil)
 			return
 		}
 		claims := token.Claims.(jwt.MapClaims)
@@ -224,7 +226,7 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
 		return []byte(secret), nil
