@@ -55,11 +55,11 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/denslobodan/go-bank/api/api.go (9.1%)</option>
+				<option value="file0">github.com/denslobodan/go-bank/api/api.go (25.5%)</option>
 				
 				<option value="file1">github.com/denslobodan/go-bank/pkg/storage/storage.go (84.1%)</option>
 				
-				<option value="file2">github.com/denslobodan/go-bank/pkg/types/types.go (60.0%)</option>
+				<option value="file2">github.com/denslobodan/go-bank/pkg/types/types.go (64.3%)</option>
 				
 				</select>
 			</div>
@@ -159,19 +159,19 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 }
 
 // GET/account
-func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         accounts, err := s.store.GetAccounts()
         if err != nil </span><span class="cov0" title="0">{
                 return nil
         }</span>
 
-        <span class="cov0" title="0">return WriteJSON(w, http.StatusOK, accounts)</span>
+        <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, accounts)</span>
 }
 
-func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
-        if r.Method == "GET" </span><span class="cov0" title="0">{
+func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
+        if r.Method == "GET" </span><span class="cov8" title="1">{
                 id, err := getID(r)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         return err
                 }</span>
                 <span class="cov0" title="0">account, err := s.store.GetAccountByID(id)
@@ -182,11 +182,11 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
                 <span class="cov0" title="0">return WriteJSON(w, http.StatusOK, account)</span>
         }
 
-        <span class="cov0" title="0">if r.Method == "DELETE" </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if r.Method == "DELETE" </span><span class="cov8" title="1">{
                 return s.handleDeleteAccount(w, r)
         }</span>
 
-        <span class="cov0" title="0">return fmt.Errorf("method not allowed %s", r.Method)</span>
+        <span class="cov8" title="1">return fmt.Errorf("method not allowed %s", r.Method)</span>
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
@@ -196,8 +196,8 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
         }</span>
 
         <span class="cov8" title="1">account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
-        if err != nil </span><span class="cov0" title="0">{
-                return err
+        if err != nil </span><span class="cov8" title="1">{
+                return WriteJSON(w, http.StatusBadRequest, nil)
         }</span>
         <span class="cov8" title="1">if err := s.store.CreateAccount(account); err != nil </span><span class="cov0" title="0">{
                 return err
@@ -206,9 +206,9 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
         <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, account)</span>
 }
 
-func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         id, err := getID(r)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
 
@@ -271,12 +271,14 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
 
                 <span class="cov0" title="0">userID, err := getID(r)
                 if err != nil </span><span class="cov0" title="0">{
-                        permissionDenied(w)
+                        WriteJSON(w, http.StatusBadRequest, nil)
+                        // permissionDenied(w)
                         return
                 }</span>
                 <span class="cov0" title="0">account, err := s.GetAccountByID(userID)
                 if err != nil </span><span class="cov0" title="0">{
-                        permissionDenied(w)
+                        // permissionDenied(w)
+                        WriteJSON(w, http.StatusNotFound, nil)
                         return
                 }</span>
                 <span class="cov0" title="0">claims := token.Claims.(jwt.MapClaims)
@@ -299,7 +301,7 @@ func validateJWT(tokenString string) (*jwt.Token, error) <span class="cov0" titl
         return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) </span><span class="cov0" title="0">{
                 // Don't forget to validate the alg is what you expect:
                 if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
-                        return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+                        return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
                 }</span>
 
                 <span class="cov0" title="0">return []byte(secret), nil</span>
@@ -320,10 +322,10 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc <span class="cov0" title="0"
         }
 }
 
-func getID(r *http.Request) (int, error) <span class="cov0" title="0">{
+func getID(r *http.Request) (int, error) <span class="cov8" title="1">{
         idStr := mux.Vars(r)["id"]
         id, err := strconv.Atoi(idStr)
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return id, fmt.Errorf("invaild id given %s", idStr)
         }</span>
 
@@ -481,10 +483,18 @@ func scanIntoAccount(rows *sql.Rows) (*types.Account, error) <span class="cov8" 
 		<pre class="file" id="file2" style="display: none">package types
 
 import (
+        "errors"
         "math/rand"
+        "regexp"
+        "strings"
         "time"
 
         "golang.org/x/crypto/bcrypt"
+)
+
+var (
+        errFName error = errors.New("invalid characters in firstName")
+        errLName error = errors.New("invalid characters in lastName")
 )
 
 type LoginResponse struct {
@@ -523,7 +533,15 @@ func (a *Account) ValidPassword(pw string) bool <span class="cov0" title="0">{
 }</span>
 
 func NewAccount(firstName, lastName, password string) (*Account, error) <span class="cov8" title="1">{
-        encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+        if !vallidateName(firstName) </span><span class="cov0" title="0">{
+                return nil, errFName
+        }</span>
+
+        <span class="cov8" title="1">if !vallidateName(lastName) </span><span class="cov0" title="0">{
+                return nil, errLName
+        }</span>
+
+        <span class="cov8" title="1">encpw, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
         if err != nil </span><span class="cov0" title="0">{
                 return nil, err
         }</span>
@@ -534,6 +552,19 @@ func NewAccount(firstName, lastName, password string) (*Account, error) <span cl
                 EncryptedPassword: string(encpw),
                 CreatedAt:         time.Now().UTC(),
         }, nil</span>
+}
+
+func vallidateName(name string) bool <span class="cov8" title="1">{
+        name = strings.TrimSpace(name)
+
+        if name == "" </span><span class="cov0" title="0">{
+                return false
+        }</span>
+
+        // Проверка корректности name с помощью регулярного выражения
+        <span class="cov8" title="1">nameRegex := regexp.MustCompile(`^[A-Za-z]+$`)
+
+        return nameRegex.MatchString(name)</span>
 }
 </pre>
 		
