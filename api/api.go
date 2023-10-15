@@ -42,6 +42,7 @@ func (s *APIServer) Run() {
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
+		WriteJSON(w, http.StatusMethodNotAllowed, nil)
 		return fmt.Errorf("method not allowed %s", r.Method)
 	}
 
@@ -52,7 +53,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 
 	acc, err := s.store.GetAccountByNumber(int64(req.Number))
 	if err != nil {
-		return err // handle this response
+		return err
 	}
 
 	if acc.ValidPassword(req.Password) {
@@ -80,6 +81,8 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 		return s.handleCreateAccount(w, r)
 	}
 
+	WriteJSON(w, http.StatusMethodNotAllowed, nil)
+
 	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
@@ -101,6 +104,7 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 		}
 		account, err := s.store.GetAccountByID(id)
 		if err != nil {
+			WriteJSON(w, http.StatusNotFound, nil)
 			return err
 		}
 
@@ -110,6 +114,8 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 	if r.Method == "DELETE" {
 		return s.handleDeleteAccount(w, r)
 	}
+
+	WriteJSON(w, http.StatusMethodNotAllowed, nil)
 
 	return fmt.Errorf("method not allowed %s", r.Method)
 }
@@ -122,7 +128,8 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
 	account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
 	if err != nil {
-		return WriteJSON(w, http.StatusBadRequest, nil)
+		WriteJSON(w, http.StatusBadRequest, nil)
+		return err
 	}
 	if err := s.store.CreateAccount(account); err != nil {
 		return err
@@ -150,6 +157,11 @@ func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 	defer r.Body.Close()
+
+	if transferReq.ToAccount <= 0 {
+		WriteJSON(w, http.StatusBadRequest, transferReq)
+		return fmt.Errorf("invalid number ToAccount")
+	}
 
 	return WriteJSON(w, http.StatusOK, transferReq)
 }
@@ -249,6 +261,7 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 
 func getID(r *http.Request) (int, error) {
 	idStr := mux.Vars(r)["id"]
+	// idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return id, fmt.Errorf("invaild id given %s", idStr)
