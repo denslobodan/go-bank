@@ -20,6 +20,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestAPIServerRun(t *testing.T) {
@@ -80,59 +81,43 @@ func TestAPIServerRun(t *testing.T) {
 
 		// Need to create a router that we can pass the request through so that the vars will be added to the context
 		server.Run()
+
 		// Check the response status code
 		assert.Equal(t, rr.Code, http.StatusOK)
-
 	}
 }
 
 func TestAPIServer_handleLogin(t *testing.T) {
-	account := &pkg.Account{
-		ID:                1,
-		FirstName:         "Bob",
-		LastName:          "Ross",
-		EncryptedPassword: "password",
-		Number:            123456789,
-		Balance:           100,
-		CreatedAt:         time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-
 	// Define test cases
 	testCases := []struct {
 		name     string
-		request  pkg.LoginRequest
-		response pkg.LoginResponse
+		number   int64
+		password string
+		token    string
 		method   string
 		status   int
 		wantErr  bool
+		err      error
 	}{
 		{
-			name: "Valid logining",
-			request: pkg.LoginRequest{
-				Number:   123456789,
-				Password: "password",
-			},
-			response: pkg.LoginResponse{
-				Number: 123456789,
-				Token:  "secret_token",
-			},
-			method:  "POST",
-			status:  http.StatusOK,
-			wantErr: true,
+			name:     "Valid logining",
+			password: "password",
+			number:   123456789,
+			token:    "secret_token",
+			method:   "POST",
+			status:   http.StatusOK,
+			wantErr:  false,
+			err:      nil,
 		},
 		{
-			name: "Invalid logining",
-			request: pkg.LoginRequest{
-				Number:   123456789,
-				Password: "password",
-			},
-			response: pkg.LoginResponse{
-				Number: 123456789,
-				Token:  "secret_token",
-			},
-			method:  "PATCH",
-			status:  http.StatusMethodNotAllowed,
-			wantErr: true,
+			name:     "Invalid logining",
+			password: "password",
+			number:   123456789,
+			token:    "secret_token",
+			method:   "PATCH",
+			status:   http.StatusMethodNotAllowed,
+			wantErr:  true,
+			err:      fmt.Errorf("method not allowed PATCH"),
 		},
 	}
 
@@ -143,26 +128,50 @@ func TestAPIServer_handleLogin(t *testing.T) {
 
 			// Create a new instance of APIServer with the mock store
 			server := NewAPIServer("localhost:8080", storage)
+
+			account := &pkg.Account{
+				ID:                1,
+				FirstName:         "Bob",
+				LastName:          "Ross",
+				EncryptedPassword: "$2a$10$pyyAbptYdjOSfj/ZoX0T2OmM81UcdvnyTdDHDa37PiQHp/VLTpQie",
+				Number:            123456789,
+				Balance:           100,
+				CreatedAt:         time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),
+			}
+
+			hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(tc.password), bcrypt.DefaultCost)
+
+			loginRequest := &pkg.LoginRequest{
+				Number:   tc.number,
+				Password: string(hashedPassword),
+			}
+
+			// loginResponse := &pkg.LoginResponse{
+			// 	Number: tc.number,
+			// 	Token:  tc.token,
+			// }
+
 			// Convert the request body to JSON
-			jsonReq, _ := json.Marshal(tc.request)
+			jsonReq, _ := json.Marshal(loginRequest)
 
 			req, _ := http.NewRequest(tc.method, "/login", bytes.NewBuffer(jsonReq))
 
-			recorder := httptest.NewRecorder()
+			rr := httptest.NewRecorder()
 
-			storage.EXPECT().GetAccountByNumber(gomock.Any()).Return(account, nil)
+			storage.EXPECT().GetAccountByNumber(account.Number).Return(account, nil)
 
-			err := server.handleLogin(recorder, req)
-
-			assert.True(t, (err != nil) == tc.wantErr)
-
-			// Check the response status code
-			assert.Equal(t, tc.status, recorder.Code)
+			server.handleLogin(rr, req)
 
 			var resp pkg.LoginResponse
-			json.Unmarshal(recorder.Body.Bytes(), &resp)
 
-			// assert.Equal(t, tc.response, resp)
+			json.Unmarshal(rr.Body.Bytes(), &resp)
+
+			// assert.Equal(t, loginResponse, resp)
+
+			// assert.True(t, (err != nil) == tc.wantErr)
+
+			// Check the response status code
+			assert.Equal(t, tc.status, rr.Code)
 		})
 	}
 
@@ -813,12 +822,6 @@ func Test_createJWT(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to parse JWT: %v", err)
 	}
-
-	// Additional assertions if needed
-	// ...
-
-	// Clean up if needed
-	// ...
 }
 
 func Test_validateJWT(t *testing.T) {
@@ -834,13 +837,22 @@ func Test_validateJWT(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		tokenMethod string
+		tokenHeader string
+		tokenMethod jwt.SigningMethod
+		validMethod bool
 		wantErr     bool
 	}{
 		{
 			name:        "Valid token method",
-			tokenMethod: "alg",
+			tokenMethod: &jwt.SigningMethodHMAC{},
+			validMethod: true,
 			wantErr:     false,
+		},
+		{
+			name:        "Invalid token method",
+			tokenMethod: &jwt.SigningMethodECDSA{},
+			validMethod: false,
+			wantErr:     true,
 		},
 	}
 
@@ -851,17 +863,94 @@ func Test_validateJWT(t *testing.T) {
 		token, err := validateJWT(tokenString)
 
 		// Check the error
-		assert.True(t, (err != nil) == tc.wantErr)
-
-		// // Проверка, что метод подписи токена соответствует ожидаемому значению
-		// if tc.tokenMethod != token.Header["alg"] {
-		// 	t.Errorf("unexpected signing method: %v", token.Header["alg"])
-		// }
+		assert.Nil(t, err)
 
 		// Проверка, что token не является nil
-		if token == nil {
-			t.Error("Token should not be nil")
-		}
+		assert.NotNil(t, token)
+
+		// Проверка, что метод подписи токена соответствует ожидаемому значению
+		assert.True(t, (tc.tokenMethod.Alg() == token.Method.Alg()) == (err != nil))
 	}
 
+}
+
+func Test_withJWTAuth(t *testing.T) {
+	type testCase struct {
+		name          string
+		validToken    bool
+		userID        string
+		tokenKey      string
+		expectedCode  int
+		returnAccount *pkg.Account
+		err           error
+	}
+
+	testCases := []testCase{
+		{
+			name:       "Valid token with matching account number",
+			validToken: true,
+			returnAccount: &pkg.Account{
+				ID: 1,
+			},
+			userID:       "1",
+			tokenKey:     "x-jwt-token",
+			expectedCode: http.StatusOK,
+			err:          nil,
+		},
+		{
+			name:          "Invalid token",
+			validToken:    false,
+			returnAccount: nil,
+			userID:        "1",
+			tokenKey:      "x-invalid-token",
+			expectedCode:  http.StatusForbidden,
+			err:           fmt.Errorf("invalid token"),
+		},
+		{
+			name:          "Invalid user id",
+			validToken:    false,
+			returnAccount: nil,
+			userID:        "2",
+			tokenKey:      "x-invalid-token",
+			expectedCode:  http.StatusForbidden,
+			err:           nil,
+		},
+		// Add more test cases for other conditions
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockStorage := createMockStorage(t)
+
+			// Create mock handler
+			mockHandler := func(w http.ResponseWriter, r *http.Request) {}
+
+			req := httptest.NewRequest("GET", "/account/1", nil)
+
+			account := &pkg.Account{ID: 1}
+
+			token, err := createJWT(account)
+
+			req.Header.Set(tc.tokenKey, token)
+
+			req = mux.SetURLVars(req, map[string]string{"id": tc.userID})
+
+			res := httptest.NewRecorder()
+
+			handler := withJWTAuth(mockHandler, mockStorage)
+
+			// assert.True(t, (err != nil), tc.validToken)
+			mockStorage.EXPECT().GetAccountByID(account.ID).Return(tc.returnAccount, tc.err)
+
+			handler(res, req)
+
+			if err != nil {
+				assert.Equal(t, err, tc.err)
+			}
+
+			assert.True(t, (err == nil), tc.validToken)
+
+			assert.Equal(t, res.Code, tc.expectedCode)
+		})
+	}
 }
