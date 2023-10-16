@@ -208,14 +208,14 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
 
 		userID, err := getID(r)
 		if err != nil {
-			WriteJSON(w, http.StatusBadRequest, nil)
-			// permissionDenied(w)
+			// WriteJSON(w, http.StatusBadRequest, nil)
+			permissionDenied(w)
 			return
 		}
 		account, err := s.GetAccountByID(userID)
 		if err != nil {
-			// permissionDenied(w)
-			WriteJSON(w, http.StatusNotFound, nil)
+			permissionDenied(w)
+			// WriteJSON(w, http.StatusNotFound, nil)
 			return
 		}
 		claims := token.Claims.(jwt.MapClaims)
@@ -240,6 +240,8 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
+
+		// string([]byte(secret))
 
 		return []byte(secret), nil
 	})
