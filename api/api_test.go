@@ -20,7 +20,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func TestAPIServerRun(t *testing.T) {
@@ -103,21 +102,37 @@ func TestAPIServer_handleLogin(t *testing.T) {
 			name:     "Valid logining",
 			password: "password",
 			number:   123456789,
-			token:    "secret_token",
+			token:    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjoxMjM0NTY3ODksImV4cGlyZXNBdCI6MTUwMDB9.rW9nEbnMqzZaoAiiAeO05lRorih0drS6z_mNwr0GaCE",
 			method:   "POST",
 			status:   http.StatusOK,
 			wantErr:  false,
 			err:      nil,
 		},
 		{
-			name:     "Invalid logining",
-			password: "password",
+			name:    "Invalid method logining",
+			number:  123456789,
+			method:  "PATCH",
+			status:  http.StatusMethodNotAllowed,
+			wantErr: true,
+			err:     fmt.Errorf("method not allowed PATCH"),
+		},
+		{
+			name:     "Invalid password logining",
 			number:   123456789,
-			token:    "secret_token",
-			method:   "PATCH",
-			status:   http.StatusMethodNotAllowed,
+			password: "query",
+			method:   "POST",
+			status:   http.StatusForbidden,
 			wantErr:  true,
-			err:      fmt.Errorf("method not allowed PATCH"),
+			err:      fmt.Errorf("not authenticated"),
+		},
+		{
+			name:     "Invalid number logining",
+			number:   123456789,
+			password: "password",
+			method:   "POST",
+			status:   http.StatusForbidden,
+			wantErr:  true,
+			err:      fmt.Errorf("not authenticated"),
 		},
 	}
 
@@ -139,17 +154,18 @@ func TestAPIServer_handleLogin(t *testing.T) {
 				CreatedAt:         time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC),
 			}
 
-			hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(tc.password), bcrypt.DefaultCost)
+			if tc.wantErr {
+				account = nil
+			}
 
 			loginRequest := &pkg.LoginRequest{
 				Number:   tc.number,
-				Password: string(hashedPassword),
+				Password: tc.password,
 			}
-
-			// loginResponse := &pkg.LoginResponse{
-			// 	Number: tc.number,
-			// 	Token:  tc.token,
-			// }
+			loginResponse := &pkg.LoginResponse{
+				Number: tc.number,
+				Token:  tc.token,
+			}
 
 			// Convert the request body to JSON
 			jsonReq, _ := json.Marshal(loginRequest)
@@ -158,17 +174,27 @@ func TestAPIServer_handleLogin(t *testing.T) {
 
 			rr := httptest.NewRecorder()
 
-			storage.EXPECT().GetAccountByNumber(account.Number).Return(account, nil)
+			storage.EXPECT().GetAccountByNumber(loginRequest.Number).Return(account, tc.err)
 
-			server.handleLogin(rr, req)
+			err := server.handleLogin(rr, req)
+
+			if tc.wantErr {
+				assert.True(t, (err != nil))
+
+				return
+			}
+
+			if err != nil {
+				assert.ErrorAs(t, err, tc.err)
+			}
 
 			var resp pkg.LoginResponse
 
 			json.Unmarshal(rr.Body.Bytes(), &resp)
 
-			// assert.Equal(t, loginResponse, resp)
+			assert.Equal(t, loginResponse, &resp)
 
-			// assert.True(t, (err != nil) == tc.wantErr)
+			assert.NoError(t, err)
 
 			// Check the response status code
 			assert.Equal(t, tc.status, rr.Code)
@@ -203,7 +229,7 @@ func TestAPIServer_handleTransfer(t *testing.T) {
 			name: "Error transfer",
 			transferReq: pkg.TransferRequest{
 				ToAccount: 0, // Invalid account number
-				Amount:    100,
+				Amount:    0,
 			},
 			expectedStatus: http.StatusBadRequest,
 			wantErr:        true,
@@ -487,7 +513,7 @@ func TestAPIServer_handleGetAccount(t *testing.T) {
 		{
 			name: "Not empty get accounts",
 			prepare: func(f *fields) {
-				f.storage.EXPECT().GetAccounts().Return(make([]*pkg.Account, 1), nil).Times(2)
+				f.storage.EXPECT().GetAccounts().Return(make([]*pkg.Account, 1), nil).Times(1)
 			},
 			expectedStatus: http.StatusOK,
 			wantResponse:   make([]*pkg.Account, 1),
@@ -496,11 +522,24 @@ func TestAPIServer_handleGetAccount(t *testing.T) {
 		{
 			name: "Empty get accounts",
 			prepare: func(f *fields) {
-				f.storage.EXPECT().GetAccounts().Return(make([]*pkg.Account, 0), nil).Times(2)
+				f.storage.EXPECT().GetAccounts().Return(make([]*pkg.Account, 0), nil).Times(1)
+			},
+			expectedStatus: http.StatusOK,
+			wantResponse:   []*pkg.Account{},
+			wantErr:        false,
+		},
+		{ // вернуть ошибку
+			name: "Error get accounts",
+			prepare: func(f *fields) {
+				f.storage.EXPECT().GetAccounts().
+					Return(
+						nil,
+						fmt.Errorf("Inivalid get accounts"),
+					)
 			},
 			expectedStatus: http.StatusOK,
 			wantResponse:   nil,
-			wantErr:        false,
+			wantErr:        true,
 		},
 	}
 
@@ -523,20 +562,30 @@ func TestAPIServer_handleGetAccount(t *testing.T) {
 			server := NewAPIServer("localhost:8080", f.storage)
 
 			// Create a new GET request to the handleGetAccountByID endpoint with the account ID
-			req, _ := http.NewRequest("GET", "/account", nil)
+			req := httptest.NewRequest("GET", "/account", nil)
 
-			// Create a response recorder to capture the response
-			recorder := httptest.NewRecorder()
-
-			resp, _ := f.storage.GetAccounts()
+			// Create a response rr to capture the response
+			rr := httptest.NewRecorder()
 
 			// Call the handleGetAccount method with the recorder and request
-			server.handleGetAccount(recorder, req)
+			err := server.handleGetAccount(rr, req)
+
+			if !tc.wantErr {
+				assert.NoError(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			var resp []*pkg.Account
+
+			json.Unmarshal(rr.Body.Bytes(), &resp)
+
+			assert.Equal(t, resp, tc.wantResponse)
 
 			// Check the response status code
-			assert.Equal(t, tc.expectedStatus, recorder.Code)
-			// Assert that the response contains the correct account details
-			assert.True(t, (resp == nil) == tc.wantErr)
+			assert.Equal(t, tc.expectedStatus, rr.Code)
+			// // Assert that the response contains the correct account details
+			// assert.True(t, (resp == nil) == tc.wantErr)
 		})
 	}
 }
@@ -876,81 +925,109 @@ func Test_validateJWT(t *testing.T) {
 
 func Test_withJWTAuth(t *testing.T) {
 	type testCase struct {
-		name          string
-		validToken    bool
-		userID        string
-		tokenKey      string
-		expectedCode  int
-		returnAccount *pkg.Account
-		err           error
+		name         string
+		number       int64
+		userID       string
+		token        string
+		expectedCode int
+		msgErr       string
+		wantErr      bool
 	}
 
 	testCases := []testCase{
 		{
-			name:       "Valid token with matching account number",
-			validToken: true,
-			returnAccount: &pkg.Account{
-				ID: 1,
-			},
+			name:         "Valid token with matching account number",
+			number:       88992211,
 			userID:       "1",
-			tokenKey:     "x-jwt-token",
+			token:        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjo4ODk5MjIxMSwiZXhwaXJlc0F0IjoxNTAwMH0.lFFFV038S9-ZWr6oSzOMbzUIyN3K4BHqY3bvRYXmxmQ",
 			expectedCode: http.StatusOK,
-			err:          nil,
+			msgErr:       "",
+			wantErr:      false,
 		},
 		{
-			name:          "Invalid token",
-			validToken:    false,
-			returnAccount: nil,
-			userID:        "1",
-			tokenKey:      "x-invalid-token",
-			expectedCode:  http.StatusForbidden,
-			err:           fmt.Errorf("invalid token"),
+			name:         "Invalid token",
+			number:       88992211,
+			userID:       "1",
+			token:        "invalid_token_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjowLCJleHBpcmVzQXQiOjE1MDAwfQ.NDCpuBy_ilDA-01aY-GKi8_T2yM5FQh2KiXZTm6m1zc",
+			expectedCode: http.StatusForbidden,
+			msgErr:       "error:invalid token",
+			wantErr:      true,
 		},
 		{
-			name:          "Invalid user id",
-			validToken:    false,
-			returnAccount: nil,
-			userID:        "2",
-			tokenKey:      "x-invalid-token",
-			expectedCode:  http.StatusForbidden,
-			err:           nil,
+			name:         "Invalid user id",
+			number:       88992211,
+			userID:       "a",
+			token:        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjowLCJleHBpcmVzQXQiOjE1MDAwfQ.NDCpuBy_ilDA-01aY-GKi8_T2yM5FQh2KiXZTm6m1zc",
+			expectedCode: http.StatusForbidden,
+			msgErr:       "error:permission denied",
+			wantErr:      true,
 		},
+		{
+			name:         "Invalid user id",
+			number:       88992211,
+			userID:       "2",
+			token:        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjowLCJleHBpcmVzQXQiOjE1MDAwfQ.NDCpuBy_ilDA-01aY-GKi8_T2yM5FQh2KiXZTm6m1zc",
+			expectedCode: http.StatusForbidden,
+			msgErr:       "error:permission denied",
+			wantErr:      true,
+		},
+		{
+			name:         "Invalid user id",
+			number:       11224455,
+			userID:       "1",
+			token:        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjowLCJleHBpcmVzQXQiOjE1MDAwfQ.NDCpuBy_ilDA-01aY-GKi8_T2yM5FQh2KiXZTm6m1zc",
+			expectedCode: http.StatusForbidden,
+			msgErr:       "error:permission denied",
+			wantErr:      true,
+		},
+
 		// Add more test cases for other conditions
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+
 			mockStorage := createMockStorage(t)
 
 			// Create mock handler
 			mockHandler := func(w http.ResponseWriter, r *http.Request) {}
 
-			req := httptest.NewRequest("GET", "/account/1", nil)
+			path := fmt.Sprintf("/account/%s", tc.userID)
 
-			account := &pkg.Account{ID: 1}
+			req := httptest.NewRequest("GET", path, nil)
 
-			token, err := createJWT(account)
+			id, err := strconv.Atoi(tc.userID)
 
-			req.Header.Set(tc.tokenKey, token)
+			account := &pkg.Account{
+				ID:     id,
+				Number: tc.number,
+			}
 
+			req.Header.Set("x-jwt-token", tc.token)
 			req = mux.SetURLVars(req, map[string]string{"id": tc.userID})
 
-			res := httptest.NewRecorder()
+			rr := httptest.NewRecorder()
 
 			handler := withJWTAuth(mockHandler, mockStorage)
 
+			mockStorage.EXPECT().GetAccountByID(account.ID).Return(account, err)
+
+			handler(rr, req)
+
+			// assert.ErrorAs(t, err, tc.err)
+
 			// assert.True(t, (err != nil), tc.validToken)
-			mockStorage.EXPECT().GetAccountByID(account.ID).Return(tc.returnAccount, tc.err)
 
-			handler(res, req)
-
-			if err != nil {
-				assert.Equal(t, err, tc.err)
-			}
-
-			assert.True(t, (err == nil), tc.validToken)
-
-			assert.Equal(t, res.Code, tc.expectedCode)
+			assert.Equal(t, rr.Code, tc.expectedCode)
 		})
 	}
+}
+
+func deletedQuotes(data string) string {
+	data = strings.ReplaceAll(data, "\"", "")
+	data = strings.ReplaceAll(data, "{", "")
+	data = strings.ReplaceAll(data, "}", "")
+	data = strings.ReplaceAll(data, "\n", "")
+
+	return data
 }

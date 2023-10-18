@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/denslobodan/go-bank/api/api.go (78.8%)</option>
+				<option value="file0">github.com/denslobodan/go-bank/api/api.go (85.6%)</option>
 				
 				<option value="file1">github.com/denslobodan/go-bank/pkg/storage/storage.go (84.1%)</option>
 				
@@ -127,20 +127,21 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error <s
         }</span>
 
         <span class="cov8" title="1">acc, err := s.store.GetAccountByNumber(int64(req.Number))
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">if acc.ValidPassword(req.Password) </span><span class="cov0" title="0">{
+                WriteJSON(w, http.StatusForbidden, nil)
+                return err
+        }</span>
+
+        <span class="cov8" title="1">token, err := createJWT(acc)
         if err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
 
-        <span class="cov8" title="1">if acc.ValidPassword(req.Password) </span><span class="cov8" title="1">{
-                return fmt.Errorf("not authenticated")
-        }</span>
-
-        <span class="cov0" title="0">token, err := createJWT(acc)
-        if err != nil </span><span class="cov0" title="0">{
-                return err
-        }</span>
-
-        <span class="cov0" title="0">resp := pkg.LoginResponse{
+        <span class="cov8" title="1">resp := pkg.LoginResponse{
                 Token:  token,
                 Number: acc.Number,
         }
@@ -164,7 +165,7 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 // GET/account
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         accounts, err := s.store.GetAccounts()
-        if err != nil </span><span class="cov0" title="0">{
+        if err != nil </span><span class="cov8" title="1">{
                 return nil
         }</span>
 
@@ -262,7 +263,6 @@ func createJWT(account *pkg.Account) (string, error) <span class="cov8" title="1
 
 func permissionDenied(w http.ResponseWriter) <span class="cov8" title="1">{
         WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
-
 }</span>
 
 func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc <span class="cov8" title="1">{
@@ -282,29 +282,25 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
                 }</span>
 
                 <span class="cov8" title="1">userID, err := getID(r)
-                if err != nil </span><span class="cov0" title="0">{
-                        // WriteJSON(w, http.StatusBadRequest, nil)
+                if err != nil </span><span class="cov8" title="1">{
                         permissionDenied(w)
                         return
                 }</span>
                 <span class="cov8" title="1">account, err := s.GetAccountByID(userID)
                 if err != nil </span><span class="cov0" title="0">{
                         permissionDenied(w)
-                        // WriteJSON(w, http.StatusNotFound, nil)
                         return
                 }</span>
+
                 <span class="cov8" title="1">claims := token.Claims.(jwt.MapClaims)
-                if account.Number != int64(claims["accountNumber"].(float64)) </span><span class="cov0" title="0">{
+                if account.Number != int64(claims["accountNumber"].(float64)) </span><span class="cov8" title="1">{
                         permissionDenied(w)
-                        return
                 }</span>
 
                 <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
                         WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"})
                         return
                 }</span>
-
-                // WriteJSON(w, http.StatusOK, account)
 
                 <span class="cov8" title="1">handlerFunc(w, r)</span>
         }
