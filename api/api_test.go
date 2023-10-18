@@ -316,6 +316,12 @@ func TestAPIServer_handleCreateAccount(t *testing.T) {
 			status:  http.StatusBadRequest,
 			wantErr: true,
 		},
+		{
+			name:    "Empty account request",
+			request: pkg.CreateAccountRequest{},
+			status:  http.StatusBadRequest,
+			wantErr: true,
+		},
 	}
 
 	// Run test cases
@@ -471,7 +477,6 @@ func TestAPIServer_handleGetAccountByID(t *testing.T) {
 
 			expectedBody := convertToBytes(string(tc.expectedBody))
 
-			// assert.Equal(t, tc.expectedBody, recorder.Body.Bytes())
 			assert.Equal(t, expectedBody, recorder.Body.Bytes())
 
 			assert.True(t, (err != nil) == tc.wantErr)

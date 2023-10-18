@@ -20,6 +20,7 @@ type APIServer struct {
 	store      store.Storage
 }
 
+// NewAPIServer creates a new instance of APIServer.
 func NewAPIServer(listenAddr string, store store.Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
@@ -27,6 +28,7 @@ func NewAPIServer(listenAddr string, store store.Storage) *APIServer {
 	}
 }
 
+// Run starts the API server.
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
@@ -40,6 +42,7 @@ func (s *APIServer) Run() {
 	http.ListenAndServe(s.listenAddr, router)
 }
 
+// handleLogin handles the login request.
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		WriteJSON(w, http.StatusMethodNotAllowed, nil)
@@ -74,6 +77,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	return WriteJSON(w, http.StatusOK, resp)
 }
 
+// handleAccount handles requests related to accounts.
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
 		return s.handleGetAccount(w, r)
@@ -87,7 +91,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
-// GET/account
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
 	accounts, err := s.store.GetAccounts()
 	if err != nil {
@@ -97,6 +100,7 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 	return WriteJSON(w, http.StatusOK, accounts)
 }
 
+// handleGetAccountByID handles the request to get an account by ID.
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
 		id, err := getID(r)
@@ -121,6 +125,7 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
+// handleCreateAccount handles the request to create an account.
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	req := new(pkg.CreateAccountRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -139,6 +144,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	return WriteJSON(w, http.StatusOK, account)
 }
 
+// handleDeleteAccount handles the request to delete an account by ID.
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
 	id, err := getID(r)
 	if err != nil {
@@ -152,6 +158,7 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 	return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})
 }
 
+// handleTransfer handles the transfer request.
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
 	transferReq := new(pkg.TransferRequest)
 	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
@@ -167,6 +174,7 @@ func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
 	return WriteJSON(w, http.StatusOK, transferReq)
 }
 
+// WriteJSON writes JSON response.
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
@@ -174,6 +182,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
+// createJWT creates a JWT token for the account.
 func createJWT(account *pkg.Account) (string, error) {
 	claims := &jwt.MapClaims{
 		"expiresAt":     15000,
@@ -186,10 +195,12 @@ func createJWT(account *pkg.Account) (string, error) {
 	return token.SignedString([]byte(secret))
 }
 
+// permissionDenied handles permission denied response.
 func permissionDenied(w http.ResponseWriter) {
 	WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
 }
 
+// withJWTAuth is a JWT authentication middleware.
 func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("calling JWT auth middleware")
@@ -231,6 +242,7 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
 	}
 }
 
+// validateJWT validates the JWT token.
 func validateJWT(tokenString string) (*jwt.Token, error) {
 	secret := os.Getenv("JWT_SECRET")
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -245,12 +257,15 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 	})
 }
 
+// makeHTTPHandleFunc creates an HTTP handler function.
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
+// ApiError represents an API error response.
 type ApiError struct {
 	Error string `json:"error"`
 }
 
+// makeHTTPHandleFunc creates an HTTP handler function from an API function.
 func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := f(w, r); err != nil {
@@ -259,6 +274,7 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	}
 }
 
+// getID extracts the ID from the request.
 func getID(r *http.Request) (int, error) {
 	idStr := mux.Vars(r)["id"]
 	// idStr := r.URL.Query().Get("id")
