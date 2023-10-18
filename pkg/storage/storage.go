@@ -22,7 +22,7 @@ type PostgresStore struct {
 	DB *sql.DB
 }
 
-// переписать функцию, чтобы принимал БД
+// NewPostgresStore creates a new instance of PostgresStore.
 func NewPostgresStore(db *sql.DB) (*PostgresStore, error) {
 	// var connStr = "user=postgres dbname=postgres password=gobank sslmode=disable"
 
@@ -35,10 +35,12 @@ func NewPostgresStore(db *sql.DB) (*PostgresStore, error) {
 	}, nil
 }
 
+// Init initializes the PostgresStore.
 func (s PostgresStore) Init() error {
 	return s.createAccountTable()
 }
 
+// createAccountTable creates the "account" table if it doesn't exist.
 func (s *PostgresStore) createAccountTable() error {
 	query := `create table if not exists account (
 		id serial primary key,
@@ -53,8 +55,9 @@ func (s *PostgresStore) createAccountTable() error {
 	return err
 }
 
+// CreateAccount creates a new account.
 func (s *PostgresStore) CreateAccount(acc *types.Account) error {
-	query := `insert into account 
+	query := `insert into account
 		(first_name, last_name, number, encrypted_password, balance, created_at)
 		values ($1, $2, $3, $4, $5, $6)`
 
@@ -74,6 +77,8 @@ func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 
 	return nil
 }
+
+// UpdateAccount updates an existing account.
 func (s *PostgresStore) UpdateAccount(account *types.Account) error {
 	query := `UPDATE account SET first_name = $1, last_name = $2, balance = $3 WHERE id = $4`
 
@@ -85,11 +90,13 @@ func (s *PostgresStore) UpdateAccount(account *types.Account) error {
 	return nil
 }
 
+// DeleteAccount deletes an account by ID.
 func (s *PostgresStore) DeleteAccount(id int) error {
 	_, err := s.DB.Query("delete from account where id = $1", id)
 	return err
 }
 
+// GetAccountByNumber retrieves an account by its number.
 func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error) {
 	rows, err := s.DB.Query("select * from account where number = $1", number)
 	if err != nil {
@@ -101,6 +108,7 @@ func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error)
 	return nil, fmt.Errorf("account with number [%d] not found", number)
 }
 
+// GetAccountByID retrieves an account by its ID.
 func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) {
 	rows, err := s.DB.Query("select * from account where id = $1", id)
 	if err != nil {
@@ -112,6 +120,7 @@ func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) {
 	return nil, fmt.Errorf("account %d not found", id)
 }
 
+// GetAccounts retrieves a list of all accounts.
 func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
 	rows, err := s.DB.Query("select * from account")
 	if err != nil {
@@ -130,6 +139,7 @@ func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
 	return accounts, nil
 }
 
+// scanIntoAccount scans a row into an Account struct.
 func scanIntoAccount(rows *sql.Rows) (*types.Account, error) {
 	account := new(types.Account)
 	err := rows.Scan(
