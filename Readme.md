@@ -3,10 +3,8 @@
 
 Это приложение представляет собой банковскую систему, написанную на языке программирования Go.
 
-![go-bank gopher](pkg/image/go-bank_gopher.jpg)
-
-<!-- pkg/image/go-bank_gopher.jpg -->
-
+<img src="pkg/image/go-bank_gopher.jpg" alt="go-bank gopher" width="200" height="300">
+<!-- ![go-bank gopher](pkg/image/go-bank_gopher.jpg) -->
 
 ## Описание
 
