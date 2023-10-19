@@ -1,10 +1,12 @@
-![go-bank gopher](https://github.com/denslobodan/go-bank/pkg/image/go-bank_gopher.jpg)
-
-<!-- pkg/image/go-bank_gopher.jpg -->
 
 # Go-Bank
 
 Это приложение представляет собой банковскую систему, написанную на языке программирования Go.
+
+![go-bank gopher](pkg/image/go-bank_gopher.jpg)
+
+<!-- pkg/image/go-bank_gopher.jpg -->
+
 
 ## Описание
 
