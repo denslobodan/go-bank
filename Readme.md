@@ -1,4 +1,4 @@
-![gpo-bank gopher](путь/к/изображению.png)
+![go-bank gopher](путь/к/изображению.png)
 
 # Go-Bank
 
