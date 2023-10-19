@@ -1,4 +1,6 @@
-![go-bank gopher](путь/к/изображению.png)
+![go-bank gopher](https://github.com/denslobodan/go-bank/pkg/image/go-bank_gopher.jpg)
+
+<!-- pkg/image/go-bank_gopher.jpg -->
 
 # Go-Bank
 
