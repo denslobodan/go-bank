@@ -16,7 +16,7 @@ Go-Bank представляет собой пример реализации ч
 1. Склонируйте репозиторий:
 
 ```
-git clone <https://github.com/username/go-bank.git>
+git clone <https://github.com/denslobodan/go-bank.git>
 
 ```
 
