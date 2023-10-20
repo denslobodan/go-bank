@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  app:
+    build:
+      context: . # Корневая директория проекта
+      dockerfile: Dockerfile # Файл, используемый для сборки образа
+    ports:
+      - 3030:8080 # Проброс портов: локальный порт - порт внутри контейнера
+    depends_on:
+      - db
+  db:
+    container_name: gobank-db
+    image: postgres:14.1-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: gobank
+      POSTGRES_DB: postgres
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
