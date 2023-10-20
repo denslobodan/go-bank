@@ -1,5 +1,5 @@
 build:
-	go build -o bin/go-bank
+	go build -o bin/go-bank cmd/main.go
 
 run: build
 	./bin/go-bank
@@ -11,7 +11,7 @@ shortt:
 	go test -short ./..
 
 .PHONY: gen
-gen: 
+gen:
 	mockgen -source=pkg/storage/storage.go \
 	-destination=pkg/mocks/storage_mock.go
 
