@@ -5,7 +5,7 @@
 
 
 <img src="pkg/image/go-bank_gopher.jpg" alt="go-bank gopher" width="350" height="350">
-<!-- ![go-bank gopher](pkg/image/go-bank_gopher.jpg) -->
+
 
 ## Описание
 
@@ -13,21 +13,29 @@ Go-Bank представляет собой пример реализации ч
 
 ## Установка и запуск
 
-1. Склонируйте репозиторий:
+1. Создайте контейнер docker c БД Postgres
+
+```bash
+docker run --name bank-postgres -e POSTGRES_PASSWORD=gobank -p 5432:5432 -d postgres
+
+```
+
+
+2. Склонируйте репозиторий:
 
 ```
 git clone <https://github.com/denslobodan/go-bank.git>
 
 ```
 
-1. Перейдите в папку проекта:
+3. Перейдите в папку проекта:
 
 ```
 cd go-bank
 
 ```
 
-1. Соберите и запустите приложение:
+4. Соберите и запустите приложение:
 
 ```
 make run

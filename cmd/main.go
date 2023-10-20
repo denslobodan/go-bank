@@ -12,7 +12,14 @@ import (
 )
 
 func NewDB() (db *sql.DB, err error) {
-	var connStr = "user=postgres dbname=postgres password=gobank sslmode=disable"
+	// dbHost := os.Getenv("DB_HOST")
+	// dbPort := os.Getenv("DB_PORT")
+	dbHost := "db"
+	dbPort := "5432"
+	var connStr = fmt.Sprintf("host=%s port=%s user=postgres dbname=postgres password=gobank sslmode=disable",
+		dbHost,
+		dbPort,
+	)
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось открыть базу данных: %v", err)

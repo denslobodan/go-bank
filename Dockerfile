@@ -1,25 +1,14 @@
-# Compile stage
-FROM golang:1.21.1 AS build-env
+FROM golang:1.21.1-alpine
 
-WORKDIR /go-bank
+WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY go.mod ./
+COPY go.sum ./
 
-RUN go mod download
+COPY . ./
 
-COPY . .
+RUN go build -o bin/go-bank cmd/main.go
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-linkmode external -extldflags -static" -o bin/go-bank cmd/main.go
+EXPOSE 3030
 
-EXPOSE 8080
-
-# Final stage
-FROM alpine
-
-EXPOSE 8080
-
-WORKDIR /go-bank
-
-COPY --from=build-env /go-bank /go-bank
-
-CMD ["/bin/go-bank"]
+CMD ["./bin/go-bank"]

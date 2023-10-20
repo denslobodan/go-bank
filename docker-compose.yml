@@ -5,7 +5,7 @@ services:
       context: . # Корневая директория проекта
       dockerfile: Dockerfile # Файл, используемый для сборки образа
     ports:
-      - 3030:8080 # Проброс портов: локальный порт - порт внутри контейнера
+      - 3030:3030 # Проброс портов: локальный порт - порт внутри контейнера
     depends_on:
       - db
   db:
@@ -17,5 +17,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: gobank
       POSTGRES_DB: postgres
+      #DB_HOST: db
+      #DB_PORT: 5432
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
