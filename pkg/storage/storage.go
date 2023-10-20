@@ -24,7 +24,6 @@ type PostgresStore struct {
 
 // NewPostgresStore creates a new instance of PostgresStore.
 func NewPostgresStore(db *sql.DB) (*PostgresStore, error) {
-	// var connStr = "user=postgres dbname=postgres password=gobank sslmode=disable"
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("соединение отсутствует: %v", err)
