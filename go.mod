@@ -1,6 +1,6 @@
 module github.com/denslobodan/go-bank
 
-go 1.21.1
+go 1.21
 
 require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible
@@ -39,6 +39,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/joho/godotenv v1.5.1
 	github.com/moby/term v0.5.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc4 // indirect
