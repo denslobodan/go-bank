@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/denslobodan/go-bank/api"
 	store "github.com/denslobodan/go-bank/pkg/storage"
@@ -12,10 +13,8 @@ import (
 )
 
 func NewDB() (db *sql.DB, err error) {
-	// dbHost := os.Getenv("DB_HOST")
-	// dbPort := os.Getenv("DB_PORT")
-	dbHost := "db"
-	dbPort := "5432"
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
 	var connStr = fmt.Sprintf("host=%s port=%s user=postgres dbname=postgres password=gobank sslmode=disable",
 		dbHost,
 		dbPort,

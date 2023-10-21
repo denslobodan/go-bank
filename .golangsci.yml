@@ -1,0 +1,13 @@
+linters-settings:
+  golint:
+    enabled: true
+  govet:
+    enabled: true
+  gocyclo:
+    enabled: true
+    max-complexity: 10
+  gosec:
+    enabled: true
+    tests: true
+run:
+  modules-download-mode: "readonly"
