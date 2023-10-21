@@ -55,11 +55,11 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/denslobodan/go-bank/api/api.go (85.6%)</option>
+				<option value="file0">github.com/denslobodan/go-bank/api/api.go (82.4%)</option>
 				
 				<option value="file1">github.com/denslobodan/go-bank/pkg/storage/storage.go (84.1%)</option>
 				
-				<option value="file2">github.com/denslobodan/go-bank/pkg/types/types.go (64.3%)</option>
+				<option value="file2">github.com/denslobodan/go-bank/pkg/types/types.go (85.7%)</option>
 				
 				</select>
 			</div>
@@ -95,6 +95,7 @@ type APIServer struct {
         store      store.Storage
 }
 
+// NewAPIServer creates a new instance of APIServer.
 func NewAPIServer(listenAddr string, store store.Storage) *APIServer <span class="cov8" title="1">{
         return &amp;APIServer{
                 listenAddr: listenAddr,
@@ -102,6 +103,7 @@ func NewAPIServer(listenAddr string, store store.Storage) *APIServer <span class
         }
 }</span>
 
+// Run starts the API server.
 func (s *APIServer) Run() <span class="cov8" title="1">{
         router := mux.NewRouter()
 
@@ -115,10 +117,11 @@ func (s *APIServer) Run() <span class="cov8" title="1">{
         http.ListenAndServe(s.listenAddr, router)
 }</span>
 
+// handleLogin handles the login request.
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         if r.Method != "POST" </span><span class="cov8" title="1">{
                 WriteJSON(w, http.StatusMethodNotAllowed, nil)
-                return fmt.Errorf("method not allowed %s", r.Method)
+                return fmt.Errorf("method not allowed")
         }</span>
 
         <span class="cov8" title="1">var req pkg.LoginRequest
@@ -132,8 +135,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error <s
         }</span>
 
         <span class="cov8" title="1">if acc.ValidPassword(req.Password) </span><span class="cov0" title="0">{
-                WriteJSON(w, http.StatusForbidden, nil)
-                return err
+                return WriteJSON(w, http.StatusForbidden, nil)
         }</span>
 
         <span class="cov8" title="1">token, err := createJWT(acc)
@@ -149,6 +151,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error <s
         return WriteJSON(w, http.StatusOK, resp)</span>
 }
 
+// handleAccount handles requests related to accounts.
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         if r.Method == "GET" </span><span class="cov8" title="1">{
                 return s.handleGetAccount(w, r)
@@ -157,21 +160,24 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
                 return s.handleCreateAccount(w, r)
         }</span>
 
-        <span class="cov8" title="1">WriteJSON(w, http.StatusMethodNotAllowed, nil)
+        <span class="cov8" title="1">if err := WriteJSON(w, http.StatusMethodNotAllowed, nil); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
 
-        return fmt.Errorf("method not allowed %s", r.Method)</span>
+        <span class="cov8" title="1">return fmt.Errorf("method not allowed")</span>
 }
 
-// GET/account
+// handleGetAccount handles the request to get accounts
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         accounts, err := s.store.GetAccounts()
         if err != nil </span><span class="cov8" title="1">{
-                return nil
+                return err
         }</span>
 
         <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, accounts)</span>
 }
 
+// handleGetAccountByID handles the request to get an account by ID.
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         if r.Method == "GET" </span><span class="cov8" title="1">{
                 id, err := getID(r)
@@ -180,9 +186,11 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
                 }</span>
                 <span class="cov8" title="1">account, err := s.store.GetAccountByID(id)
                 if err != nil </span><span class="cov8" title="1">{
-                        WriteJSON(w, http.StatusNotFound, nil)
-                        return err
-                }</span>
+                        if err := WriteJSON(w, http.StatusNotFound, err); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">return fmt.Errorf("account not found")</span>
+                }
 
                 <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, account)</span>
         }
@@ -191,11 +199,14 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
                 return s.handleDeleteAccount(w, r)
         }</span>
 
-        <span class="cov8" title="1">WriteJSON(w, http.StatusMethodNotAllowed, nil)
+        <span class="cov8" title="1">if err := WriteJSON(w, http.StatusMethodNotAllowed, nil); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
 
-        return fmt.Errorf("method not allowed %s", r.Method)</span>
+        <span class="cov8" title="1">return fmt.Errorf("method not allowed")</span>
 }
 
+// handleCreateAccount handles the request to create an account.
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         req := new(pkg.CreateAccountRequest)
         if err := json.NewDecoder(r.Body).Decode(req); err != nil </span><span class="cov0" title="0">{
@@ -204,9 +215,12 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
         <span class="cov8" title="1">account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
         if err != nil </span><span class="cov8" title="1">{
-                WriteJSON(w, http.StatusBadRequest, nil)
-                return err
-        }</span>
+                err = WriteJSON(w, http.StatusBadRequest, nil)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">return fmt.Errorf("invalid account")</span>
+        }
         <span class="cov8" title="1">if err := s.store.CreateAccount(account); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
@@ -214,6 +228,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
         <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, account)</span>
 }
 
+// handleDeleteAccount handles the request to delete an account by ID.
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         id, err := getID(r)
         if err != nil </span><span class="cov0" title="0">{
@@ -227,6 +242,7 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
         <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, map[string]int{"deleted": id})</span>
 }
 
+// handleTransfer handles the transfer request.
 func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error <span class="cov8" title="1">{
         transferReq := new(pkg.TransferRequest)
         if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil </span><span class="cov0" title="0">{
@@ -235,13 +251,18 @@ func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
         <span class="cov8" title="1">defer r.Body.Close()
 
         if transferReq.ToAccount &lt;= 0 </span><span class="cov8" title="1">{
-                WriteJSON(w, http.StatusBadRequest, transferReq)
-                return fmt.Errorf("invalid number ToAccount")
-        }</span>
+                err := WriteJSON(w, http.StatusBadRequest, nil)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+
+                <span class="cov8" title="1">return fmt.Errorf("error transfer")</span>
+        }
 
         <span class="cov8" title="1">return WriteJSON(w, http.StatusOK, transferReq)</span>
 }
 
+// WriteJSON writes JSON response.
 func WriteJSON(w http.ResponseWriter, status int, v any) error <span class="cov8" title="1">{
         w.WriteHeader(status)
         w.Header().Set("Content-Type", "application/json")
@@ -249,6 +270,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) error <span class="cov8
         return json.NewEncoder(w).Encode(v)
 }</span>
 
+// createJWT creates a JWT token for the account.
 func createJWT(account *pkg.Account) (string, error) <span class="cov8" title="1">{
         claims := &amp;jwt.MapClaims{
                 "expiresAt":     15000,
@@ -261,10 +283,14 @@ func createJWT(account *pkg.Account) (string, error) <span class="cov8" title="1
         return token.SignedString([]byte(secret))
 }</span>
 
+// permissionDenied handles permission denied response.
 func permissionDenied(w http.ResponseWriter) <span class="cov8" title="1">{
-        WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
-}</span>
+        if err := WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"}); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf(err.Error())
+        }</span>
+}
 
+// withJWTAuth is a JWT authentication middleware.
 func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc <span class="cov8" title="1">{
         return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
                 fmt.Println("calling JWT auth middleware")
@@ -298,14 +324,16 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
                 }</span>
 
                 <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
-                        WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"})
-                        return
-                }</span>
+                        if err := WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"}); err != nil </span><span class="cov0" title="0">{
+                                log.Fatalf(err.Error())
+                        }</span>
+                }
 
                 <span class="cov8" title="1">handlerFunc(w, r)</span>
         }
 }
 
+// validateJWT validates the JWT token.
 func validateJWT(tokenString string) (*jwt.Token, error) <span class="cov8" title="1">{
         secret := os.Getenv("JWT_SECRET")
         return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) </span><span class="cov8" title="1">{
@@ -320,12 +348,15 @@ func validateJWT(tokenString string) (*jwt.Token, error) <span class="cov8" titl
         })
 }
 
+// makeHTTPHandleFunc creates an HTTP handler function.
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
+// ApiError represents an API error response.
 type ApiError struct {
         Error string `json:"error"`
 }
 
+// makeHTTPHandleFunc creates an HTTP handler function from an API function.
 func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc <span class="cov8" title="1">{
         return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
                 if err := f(w, r); err != nil </span><span class="cov8" title="1">{
@@ -334,6 +365,7 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc <span class="cov8" title="1"
         }
 }
 
+// getID extracts the ID from the request.
 func getID(r *http.Request) (int, error) <span class="cov8" title="1">{
         idStr := mux.Vars(r)["id"]
         // idStr := r.URL.Query().Get("id")
@@ -370,9 +402,8 @@ type PostgresStore struct {
         DB *sql.DB
 }
 
-// переписать функцию, чтобы принимал БД
+// NewPostgresStore creates a new instance of PostgresStore.
 func NewPostgresStore(db *sql.DB) (*PostgresStore, error) <span class="cov8" title="1">{
-        // var connStr = "user=postgres dbname=postgres password=gobank sslmode=disable"
 
         if err := db.Ping(); err != nil </span><span class="cov0" title="0">{
                 return nil, fmt.Errorf("соединение отсутствует: %v", err)
@@ -383,10 +414,12 @@ func NewPostgresStore(db *sql.DB) (*PostgresStore, error) <span class="cov8" tit
         }, nil</span>
 }
 
+// Init initializes the PostgresStore.
 func (s PostgresStore) Init() error <span class="cov8" title="1">{
         return s.createAccountTable()
 }</span>
 
+// createAccountTable creates the "account" table if it doesn't exist.
 func (s *PostgresStore) createAccountTable() error <span class="cov8" title="1">{
         query := `create table if not exists account (
                 id serial primary key,
@@ -401,8 +434,9 @@ func (s *PostgresStore) createAccountTable() error <span class="cov8" title="1">
         return err
 }</span>
 
+// CreateAccount creates a new account.
 func (s *PostgresStore) CreateAccount(acc *types.Account) error <span class="cov8" title="1">{
-        query := `insert into account 
+        query := `insert into account
                 (first_name, last_name, number, encrypted_password, balance, created_at)
                 values ($1, $2, $3, $4, $5, $6)`
 
@@ -422,6 +456,8 @@ func (s *PostgresStore) CreateAccount(acc *types.Account) error <span class="cov
 
         <span class="cov8" title="1">return nil</span>
 }
+
+// UpdateAccount updates an existing account.
 func (s *PostgresStore) UpdateAccount(account *types.Account) error <span class="cov8" title="1">{
         query := `UPDATE account SET first_name = $1, last_name = $2, balance = $3 WHERE id = $4`
 
@@ -433,11 +469,13 @@ func (s *PostgresStore) UpdateAccount(account *types.Account) error <span class=
         <span class="cov8" title="1">return nil</span>
 }
 
+// DeleteAccount deletes an account by ID.
 func (s *PostgresStore) DeleteAccount(id int) error <span class="cov8" title="1">{
         _, err := s.DB.Query("delete from account where id = $1", id)
         return err
 }</span>
 
+// GetAccountByNumber retrieves an account by its number.
 func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error) <span class="cov8" title="1">{
         rows, err := s.DB.Query("select * from account where number = $1", number)
         if err != nil </span><span class="cov0" title="0">{
@@ -449,6 +487,7 @@ func (s *PostgresStore) GetAccountByNumber(number int64) (*types.Account, error)
         <span class="cov8" title="1">return nil, fmt.Errorf("account with number [%d] not found", number)</span>
 }
 
+// GetAccountByID retrieves an account by its ID.
 func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) <span class="cov8" title="1">{
         rows, err := s.DB.Query("select * from account where id = $1", id)
         if err != nil </span><span class="cov0" title="0">{
@@ -460,6 +499,7 @@ func (s *PostgresStore) GetAccountByID(id int) (*types.Account, error) <span cla
         <span class="cov8" title="1">return nil, fmt.Errorf("account %d not found", id)</span>
 }
 
+// GetAccounts retrieves a list of all accounts.
 func (s *PostgresStore) GetAccounts() ([]*types.Account, error) <span class="cov8" title="1">{
         rows, err := s.DB.Query("select * from account")
         if err != nil </span><span class="cov0" title="0">{
@@ -478,6 +518,7 @@ func (s *PostgresStore) GetAccounts() ([]*types.Account, error) <span class="cov
         <span class="cov8" title="1">return accounts, nil</span>
 }
 
+// scanIntoAccount scans a row into an Account struct.
 func scanIntoAccount(rows *sql.Rows) (*types.Account, error) <span class="cov8" title="1">{
         account := new(types.Account)
         err := rows.Scan(
@@ -546,11 +587,11 @@ func (a *Account) ValidPassword(pw string) bool <span class="cov0" title="0">{
 }</span>
 
 func NewAccount(firstName, lastName, password string) (*Account, error) <span class="cov8" title="1">{
-        if !vallidateName(firstName) </span><span class="cov0" title="0">{
+        if !vallidateName(firstName) </span><span class="cov8" title="1">{
                 return nil, errFName
         }</span>
 
-        <span class="cov8" title="1">if !vallidateName(lastName) </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !vallidateName(lastName) </span><span class="cov8" title="1">{
                 return nil, errLName
         }</span>
 
@@ -570,7 +611,7 @@ func NewAccount(firstName, lastName, password string) (*Account, error) <span cl
 func vallidateName(name string) bool <span class="cov8" title="1">{
         name = strings.TrimSpace(name)
 
-        if name == "" </span><span class="cov0" title="0">{
+        if name == "" </span><span class="cov8" title="1">{
                 return false
         }</span>
 

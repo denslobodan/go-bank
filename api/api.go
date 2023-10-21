@@ -39,14 +39,19 @@ func (s *APIServer) Run() {
 
 	log.Println("JSON API server running on port: ", s.listenAddr)
 
+	// log.Fatal(http.ListenAndServe(s.listenAddr, router))
 	http.ListenAndServe(s.listenAddr, router)
+
 }
 
 // handleLogin handles the login request.
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
-		WriteJSON(w, http.StatusMethodNotAllowed, nil)
-		return fmt.Errorf("method not allowed %s", r.Method)
+		err := WriteJSON(w, http.StatusMethodNotAllowed, nil)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("method not allowed")
 	}
 
 	var req pkg.LoginRequest
@@ -60,8 +65,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if acc.ValidPassword(req.Password) {
-		WriteJSON(w, http.StatusForbidden, nil)
-		return err
+		return WriteJSON(w, http.StatusForbidden, nil)
 	}
 
 	token, err := createJWT(acc)
@@ -86,16 +90,18 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 		return s.handleCreateAccount(w, r)
 	}
 
-	WriteJSON(w, http.StatusMethodNotAllowed, nil)
+	if err := WriteJSON(w, http.StatusMethodNotAllowed, nil); err != nil {
+		return err
+	}
 
-	return fmt.Errorf("method not allowed %s", r.Method)
+	return fmt.Errorf("method not allowed")
 }
 
 // handleGetAccount handles the request to get accounts
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
 	accounts, err := s.store.GetAccounts()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return WriteJSON(w, http.StatusOK, accounts)
@@ -110,8 +116,10 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 		}
 		account, err := s.store.GetAccountByID(id)
 		if err != nil {
-			WriteJSON(w, http.StatusNotFound, nil)
-			return err
+			if err := WriteJSON(w, http.StatusNotFound, err); err != nil {
+				return err
+			}
+			return fmt.Errorf("account not found")
 		}
 
 		return WriteJSON(w, http.StatusOK, account)
@@ -121,9 +129,11 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 		return s.handleDeleteAccount(w, r)
 	}
 
-	WriteJSON(w, http.StatusMethodNotAllowed, nil)
+	if err := WriteJSON(w, http.StatusMethodNotAllowed, nil); err != nil {
+		return err
+	}
 
-	return fmt.Errorf("method not allowed %s", r.Method)
+	return fmt.Errorf("method not allowed")
 }
 
 // handleCreateAccount handles the request to create an account.
@@ -135,8 +145,11 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 
 	account, err := pkg.NewAccount(req.FirstName, req.LastName, req.Password)
 	if err != nil {
-		WriteJSON(w, http.StatusBadRequest, nil)
-		return err
+		err = WriteJSON(w, http.StatusBadRequest, nil)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("invalid account")
 	}
 	if err := s.store.CreateAccount(account); err != nil {
 		return err
@@ -168,8 +181,12 @@ func (s *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error
 	defer r.Body.Close()
 
 	if transferReq.ToAccount <= 0 {
-		WriteJSON(w, http.StatusBadRequest, transferReq)
-		return fmt.Errorf("invalid number ToAccount")
+		err := WriteJSON(w, http.StatusBadRequest, nil)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("error transfer")
 	}
 
 	return WriteJSON(w, http.StatusOK, transferReq)
@@ -198,7 +215,9 @@ func createJWT(account *pkg.Account) (string, error) {
 
 // permissionDenied handles permission denied response.
 func permissionDenied(w http.ResponseWriter) {
-	WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+	if err := WriteJSON(w, http.StatusForbidden, ApiError{Error: "permission denied"}); err != nil {
+		log.Fatalf(err.Error())
+	}
 }
 
 // withJWTAuth is a JWT authentication middleware.
@@ -235,8 +254,9 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s store.Storage) http.HandlerFunc
 		}
 
 		if err != nil {
-			WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"})
-			return
+			if err := WriteJSON(w, http.StatusForbidden, ApiError{Error: "invalid token"}); err != nil {
+				log.Fatalf(err.Error())
+			}
 		}
 
 		handlerFunc(w, r)
@@ -270,7 +290,10 @@ type ApiError struct {
 func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := f(w, r); err != nil {
-			WriteJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
+			err = WriteJSON(w, http.StatusBadRequest, nil)
+			if err != nil {
+				return
+			}
 		}
 	}
 }
@@ -278,7 +301,6 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 // getID extracts the ID from the request.
 func getID(r *http.Request) (int, error) {
 	idStr := mux.Vars(r)["id"]
-	// idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return id, fmt.Errorf("invaild id given %s", idStr)

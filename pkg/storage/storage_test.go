@@ -54,7 +54,10 @@ func TestMain(m *testing.M) {
 
 	log.Println("Connecting to database on url: ", databaseUrl)
 
-	resource.Expire(120) // Tell docker to hard kill the container in 120 seconds
+	err = resource.Expire(120) // Tell docker to hard kill the container in 120 seconds
+	if err != nil {
+		log.Fatalf("Docker timeout: %s", err)
+	}
 
 	// exponential backoff-retry, because the application in the container might not be ready to accept connections yet
 	pool.MaxWait = 120 * time.Second
@@ -82,14 +85,14 @@ func TestStorageMethods(t *testing.T) {
 	// all tests
 	postgres, err := store.NewPostgresStore(db)
 	if err != nil {
-		log.Fatal("Постгрес структура не создана")
+		log.Fatal("Postgres structure not created")
 	}
 
-	// Создаём таблицу account`
+	// Инициализируем БД
 	err = postgres.Init()
 	assert.NoError(t, err)
 
-	// Создаём тип аккаунт
+	// 	Created account
 	account := &types.Account{
 		FirstName:         "Bob",
 		LastName:          "Ross",
