@@ -1,6 +1,3 @@
-export DB_HOST=localhost
-export DB_PORT=5432
-
 build:
 	go build -o bin/go-bank cmd/main.go
 
