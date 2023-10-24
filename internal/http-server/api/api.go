@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/golang-jwt/jwt"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 
-	"github.com/denslobodan/go-bank/internal/http-server/middleware/logger"
 	store "github.com/denslobodan/go-bank/internal/storage"
 	pkg "github.com/denslobodan/go-bank/pkg/types"
 )
@@ -32,23 +31,19 @@ func NewAPIServer(listenAddr string, store store.Storage) *APIServer {
 }
 
 // Run starts the API server.
-func (s *APIServer) Run(log *slog.Logger) {
-	router := chi.NewRouter()
+func (s *APIServer) Run() {
+	router := mux.NewRouter()
 
-	router.Use(middleware.RequestID)
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-	// custom logger middleware
-	router.Use(logger.New(log))
+	loggedRouter := handlers.LoggingHandler(os.Stdout, router)
 
 	router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/account/{id:[0-9]+}", withJWTAuth(makeHTTPHandleFunc(s.handleGetAccountByID), s.store))
 	router.HandleFunc("/transfer", makeHTTPHandleFunc(s.handleTransfer))
 
-	log.Info("APIServer running on addres:", slog.String("port", s.listenAddr))
+	log.Println("APIServer running on ", fmt.Sprintf("port: %s", s.listenAddr))
 
-	http.ListenAndServe(s.listenAddr, router)
+	http.ListenAndServe(s.listenAddr, loggedRouter)
 }
 
 // handleLogin handles the login request.

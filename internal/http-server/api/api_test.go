@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/denslobodan/go-bank/internal/lib/logger/slogdiscard"
 	mock_store "github.com/denslobodan/go-bank/pkg/mocks"
 	pkg "github.com/denslobodan/go-bank/pkg/types"
 
@@ -67,7 +66,7 @@ func TestAPIServerRun(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		logger := slogdiscard.NewDiscardLogger()
+		// logger := slogdiscard.NewDiscardLogger()
 
 		server := APIServer{}
 
@@ -81,7 +80,7 @@ func TestAPIServerRun(t *testing.T) {
 		rr := httptest.NewRecorder()
 
 		// Need to create a router that we can pass the request through so that the vars will be added to the context
-		server.Run(logger)
+		server.Run()
 
 		// Check the response status code
 		assert.Equal(t, rr.Code, http.StatusOK)
@@ -475,7 +474,7 @@ func TestAPIServer_handleGetAccountByID(t *testing.T) {
 
 			// Create a new method request to the handleGetAccountByID endpoint with the account ID
 			req, _ := http.NewRequest(tc.method, fmt.Sprintf("/account/%d", tc.accountID), nil)
-			req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tc.accountID)})
+			// req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tc.accountID)})
 
 			// Create a response recorder to capture the response
 			recorder := httptest.NewRecorder()

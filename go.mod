@@ -15,6 +15,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/containerd/continuity v0.4.2 // indirect
 	github.com/docker/cli v23.0.3+incompatible // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -40,6 +41,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/gorilla/handlers v1.5.1
 	github.com/joho/godotenv v1.5.1
 	github.com/moby/term v0.5.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect

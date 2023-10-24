@@ -3,9 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
-
-	"log/slog"
 
 	"github.com/denslobodan/go-bank/internal/http-server/api"
 	store "github.com/denslobodan/go-bank/internal/storage"
@@ -46,23 +45,23 @@ func NewDB() (*sql.DB, error) {
 
 func main() {
 
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	// log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	db, err := NewDB()
 	if err != nil {
-		log.Error(err.Error())
+		log.Println(err.Error())
 	}
 	defer db.Close()
 
 	store, err := store.NewPostgresStore(db)
 	if err != nil {
-		log.Error(err.Error())
+		log.Println(err.Error())
 	}
 
 	if err := store.Init(); err != nil {
-		log.Error(err.Error())
+		log.Println(err.Error())
 	}
 
 	server := api.NewAPIServer(":3030", store)
-	server.Run(log)
+	server.Run()
 }
